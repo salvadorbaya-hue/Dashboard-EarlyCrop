@@ -1634,7 +1634,7 @@
 
   <footer>
     <span>Early Crop S.A. · Tucumán, Argentina</span>
-    <span>Panel v1.3 · toggle USD/kg</span>
+    <span>Panel v1.4 · precio dinámico</span>
   </footer>
 
 </div>
@@ -1646,7 +1646,6 @@ let CURVAS = {};
 let CAMPOS_CATALOGO = [];
 let plantView = 'programa';
 let projUnit = 'kg';
-const PRECIO_PROMEDIO_USD = 5.47;
 
 // ============ EXCEL LOADER ============
 const DEFAULT_FILENAME = 'early-crop-datos.xlsx';
@@ -2308,6 +2307,15 @@ function rindeCurva(variedad, edadAños) {
   return curva[Math.min(edadAños - 1, curva.length - 1)] || 0;
 }
 
+function getPrecioPromedioArandano() {
+  // Precio promedio ponderado por kg producido, sobre los campos de arándano con datos
+  const fields = DATA.arandano.fields.filter(f => !f.pending && f.priceKg != null && f.kgHa != null && f.ha != null);
+  if (fields.length === 0) return 0;
+  const totalKg = fields.reduce((s, f) => s + f.ha * f.kgHa, 0);
+  if (totalKg === 0) return 0;
+  return fields.reduce((s, f) => s + f.priceKg * f.ha * f.kgHa, 0) / totalKg;
+}
+
 function renderPlantProyeccion() {
   const projYears = [];
   for (let y = 2026; y <= 2036; y++) projYears.push(y);
@@ -2317,7 +2325,8 @@ function renderPlantProyeccion() {
 
   // Unidad actual
   const isUSD = projUnit === 'usd';
-  const multiplier = isUSD ? PRECIO_PROMEDIO_USD : 1;
+  const precioProm = getPrecioPromedioArandano();
+  const multiplier = isUSD ? precioProm : 1;
 
   allFields.forEach(f => {
     const haOriginal = f.haHoy;
@@ -2364,7 +2373,7 @@ function renderPlantProyeccion() {
   // Actualizar títulos
   document.getElementById('projTitle').textContent = isUSD ? 'Proyección de ingresos' : 'Proyección de producción';
   document.getElementById('projTag').textContent = isUSD
-    ? `2026—2036 · USD por año · precio promedio $${PRECIO_PROMEDIO_USD}/kg`
+    ? `2026—2036 · USD por año · precio promedio $${precioProm.toFixed(2)}/kg`
     : '2026—2036 · toneladas por año';
   document.getElementById('projTableTitle').textContent = isUSD ? 'Ingresos por campo y año' : 'Producción por campo y año';
   document.getElementById('projTableTag').textContent = isUSD ? 'millones de USD' : 'toneladas';
